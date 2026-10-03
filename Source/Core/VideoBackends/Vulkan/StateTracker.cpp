@@ -476,9 +476,10 @@ void StateTracker::UpdateDescriptorSet()
 
 void StateTracker::UpdateGXDescriptorSet()
 {
-  const size_t MAX_DESCRIPTOR_WRITES = NUM_UBO_DESCRIPTOR_SET_BINDINGS +  // UBO
-                                       1 +                                // Samplers
-                                       2;                                 // SSBO
+  // UBO + sampler writes (1 for binding0 array + 8 individual for binding8-15) + SSBO
+  const size_t MAX_DESCRIPTOR_WRITES = NUM_UBO_DESCRIPTOR_SET_BINDINGS +
+                                       1 + (VideoCommon::MAX_PIXEL_SHADER_SAMPLERS - 8) +
+                                       2;
   std::array<VkWriteDescriptorSet, MAX_DESCRIPTOR_WRITES> writes;
   u32 num_writes = 0;
 
@@ -523,16 +524,32 @@ void StateTracker::UpdateGXDescriptorSet()
     m_gx_descriptor_sets[1] = g_command_buffer_mgr->AllocateDescriptorSet(
         g_object_cache->GetDescriptorSetLayout(DESCRIPTOR_SET_LAYOUT_STANDARD_SAMPLERS));
 
+    // PowerVR layout: binding 0 = array of 8, binding 8-15 = individual
+    // Write binding 0 with first 8 samplers
     writes[num_writes++] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                             nullptr,
                             m_gx_descriptor_sets[1],
                             0,
                             0,
-                            static_cast<u32>(VideoCommon::MAX_PIXEL_SHADER_SAMPLERS),
+                            8,
                             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                             m_bindings.samplers.data(),
                             nullptr,
                             nullptr};
+    // Write samplers 8-15 to individual bindings 8-15
+    for (u32 s = 8; s < VideoCommon::MAX_PIXEL_SHADER_SAMPLERS; s++)
+    {
+      writes[num_writes++] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                              nullptr,
+                              m_gx_descriptor_sets[1],
+                              s,
+                              0,
+                              1,
+                              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                              m_bindings.samplers.data() + s,
+                              nullptr,
+                              nullptr};
+    }
     m_dirty_flags = (m_dirty_flags & ~DIRTY_FLAG_GX_SAMPLERS) | DIRTY_FLAG_DESCRIPTOR_SETS;
   }
 
@@ -570,8 +587,29 @@ void StateTracker::UpdateGXDescriptorSet()
     m_dirty_flags = (m_dirty_flags & ~DIRTY_FLAG_GX_SSBO) | DIRTY_FLAG_DESCRIPTOR_SETS;
   }
 
-  if (num_writes > 0)
-    vkUpdateDescriptorSets(g_vulkan_context->GetDevice(), num_writes, writes.data(), 0, nullptr);
+  // PowerVR driver crashes when multiple descriptor types are batched together,
+  // and also with descriptorCount > 1 for combined image samplers.
+  // Write each descriptor separately.
+  for (u32 i = 0; i < num_writes; i++)
+  {
+    if (writes[i].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER &&
+        writes[i].descriptorCount > 1)
+    {
+      // Split array sampler write into individual element writes
+      for (u32 s = 0; s < writes[i].descriptorCount; s++)
+      {
+        VkWriteDescriptorSet w = writes[i];
+        w.dstArrayElement = s;
+        w.descriptorCount = 1;
+        w.pImageInfo = writes[i].pImageInfo + s;
+        vkUpdateDescriptorSets(g_vulkan_context->GetDevice(), 1, &w, 0, nullptr);
+      }
+    }
+    else
+    {
+      vkUpdateDescriptorSets(g_vulkan_context->GetDevice(), 1, &writes[i], 0, nullptr);
+    }
+  }
 
   if (m_dirty_flags & DIRTY_FLAG_DESCRIPTOR_SETS)
   {

@@ -534,6 +534,16 @@ void VulkanContext::PopulateBackendInfoFeatures(BackendInfo* backend_info, VkPhy
   // Dynamic sampler indexing locks up Intel GPUs on MoltenVK/Metal
   if (DriverDetails::HasBug(DriverDetails::BUG_BROKEN_DYNAMIC_SAMPLER_INDEXING))
     backend_info->bSupportsDynamicSamplerIndexing = false;
+
+  // PowerVR (IMGTEC) Vulkan driver crashes in vkUpdateDescriptorSets when SSBO is used.
+  // Disable all SSBO paths to avoid segfault in StateTracker::UpdateGXDescriptorSet.
+  if (vendor_id == 0x1010 || device_name.find("PowerVR") != std::string::npos)
+  {
+    backend_info->bSupportsDynamicVertexLoader = false;
+    backend_info->bSupportsBBox = false;
+    backend_info->bSupportsFragmentStoresAndAtomics = false;
+    backend_info->bSupportsVSLinePointExpand = false;
+  }
 }
 
 void VulkanContext::PopulateBackendInfoMultisampleModes(BackendInfo* backend_info,
