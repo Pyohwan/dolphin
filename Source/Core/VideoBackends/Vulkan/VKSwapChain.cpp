@@ -84,6 +84,29 @@ VkSurfaceKHR SwapChain::CreateVulkanSurface(VkInstance instance, const WindowSys
   }
 #endif
 
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+  if (wsi.type == WindowSystemType::Wayland)
+  {
+    VkWaylandSurfaceCreateInfoKHR surface_create_info = {
+        VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,  // VkStructureType sType
+        nullptr,                                            // const void* pNext
+        0,                                         // VkWaylandSurfaceCreateFlagsKHR flags
+        static_cast<wl_display*>(wsi.display_connection),  // struct wl_display* display
+        static_cast<wl_surface*>(wsi.render_surface)       // struct wl_surface* surface
+    };
+
+    VkSurfaceKHR surface;
+    VkResult res = vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
+    if (res != VK_SUCCESS)
+    {
+      LOG_VULKAN_ERROR(res, "vkCreateWaylandSurfaceKHR failed: ");
+      return VK_NULL_HANDLE;
+    }
+
+    return surface;
+  }
+#endif
+
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
   if (wsi.type == WindowSystemType::Android)
   {
@@ -299,8 +322,25 @@ bool SwapChain::CreateSwapChain()
   VkExtent2D size = surface_capabilities.currentExtent;
   if (size.width == UINT32_MAX)
   {
-    size.width = std::max(g_presenter->GetBackbufferWidth(), 1);
-    size.height = std::max(g_presenter->GetBackbufferHeight(), 1);
+    // The surface size is up to us (Wayland). Use the host window size; g_presenter does not
+    // exist yet when the first swap chain is created during backend initialization.
+    const int host_width = VideoCommon::GetHostSurfaceWidth();
+    const int host_height = VideoCommon::GetHostSurfaceHeight();
+    if (host_width > 0 && host_height > 0)
+    {
+      size.width = static_cast<u32>(host_width);
+      size.height = static_cast<u32>(host_height);
+    }
+    else if (g_presenter)
+    {
+      size.width = std::max(g_presenter->GetBackbufferWidth(), 1);
+      size.height = std::max(g_presenter->GetBackbufferHeight(), 1);
+    }
+    else
+    {
+      size.width = 1280;
+      size.height = 720;
+    }
   }
   size.width = std::clamp(size.width, surface_capabilities.minImageExtent.width,
                           surface_capabilities.maxImageExtent.width);

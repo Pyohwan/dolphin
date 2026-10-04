@@ -153,8 +153,12 @@ int main(int argc, char* argv[])
   // XCB the default and forces it on if the platform is specified to be wayland, to prevent this
   // from happening.
   // For more information: https://bugs.dolphin-emu.org/issues/11807
+  // TOPST D3-G: DOLPHIN_ALLOW_WAYLAND=1 keeps a Wayland platform (Vulkan has a Wayland surface
+  // path here). Without it, behave as upstream.
   const char* current_qt_platform = getenv("QT_QPA_PLATFORM");
-  const bool replace_qt_platform = current_qt_platform != nullptr &&
+  const char* allow_wayland = getenv("DOLPHIN_ALLOW_WAYLAND");
+  const bool keep_wayland = allow_wayland != nullptr && allow_wayland[0] == '1';
+  const bool replace_qt_platform = !keep_wayland && current_qt_platform != nullptr &&
                                    Common::CaseInsensitiveContains(current_qt_platform, "wayland");
   setenv("QT_QPA_PLATFORM", "xcb", replace_qt_platform);
 #endif

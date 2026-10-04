@@ -187,6 +187,7 @@ void Host::SetTASInputFocus(const bool focus)
 
 void Host::ResizeSurface(int new_width, int new_height)
 {
+  VideoCommon::SetHostSurfaceSize(new_width, new_height);
   if (g_presenter)
     g_presenter->ResizeSurface();
 }

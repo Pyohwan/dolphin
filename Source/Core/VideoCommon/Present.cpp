@@ -3,6 +3,8 @@
 
 #include "VideoCommon/Present.h"
 
+#include <atomic>
+
 #include "Common/FrametimeLog.h"
 
 #include "Common/ChunkFile.h"
@@ -34,6 +36,25 @@ std::unique_ptr<VideoCommon::Presenter> g_presenter;
 
 namespace VideoCommon
 {
+static std::atomic<int> s_host_surface_width{0};
+static std::atomic<int> s_host_surface_height{0};
+
+void SetHostSurfaceSize(int width, int height)
+{
+  s_host_surface_width.store(width, std::memory_order_relaxed);
+  s_host_surface_height.store(height, std::memory_order_relaxed);
+}
+
+int GetHostSurfaceWidth()
+{
+  return s_host_surface_width.load(std::memory_order_relaxed);
+}
+
+int GetHostSurfaceHeight()
+{
+  return s_host_surface_height.load(std::memory_order_relaxed);
+}
+
 #ifdef __LIBRETRO__
 bool g_is_duplicate_frame{false};
 #endif

@@ -13,6 +13,12 @@
 #define VK_USE_PLATFORM_XLIB_KHR
 #endif
 
+// Wayland surface for the Qt frontend on a Wayland session (TOPST D3-G: PowerVR exposes
+// VK_KHR_wayland_surface, and its xlib/xcb path over XWayland does not present).
+#if defined(__linux__) && !defined(ANDROID) && !defined(__LIBRETRO__) && __has_include(<wayland-client.h>)
+#define VK_USE_PLATFORM_WAYLAND_KHR
+#endif
+
 #if defined(ANDROID)
 #define VK_USE_PLATFORM_ANDROID_KHR
 #endif

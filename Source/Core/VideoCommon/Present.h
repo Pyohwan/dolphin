@@ -29,6 +29,12 @@ extern bool g_is_duplicate_frame;
 #endif
 // Presenter is a class that deals with putting the final XFB on the screen.
 // It also handles the ImGui UI and post-processing.
+// Last render window size reported by the host frontend (pixels). Used by backends whose window
+// surface has no fixed size (Wayland), including before g_presenter exists. 0 if unknown.
+void SetHostSurfaceSize(int width, int height);
+int GetHostSurfaceWidth();
+int GetHostSurfaceHeight();
+
 class Presenter
 {
 public:
