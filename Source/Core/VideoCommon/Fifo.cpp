@@ -138,6 +138,7 @@ void FifoManager::ExitGpuLoop()
 #ifdef __LIBRETRO__
 void FifoManager::StopGpuLoop()
 {
+  m_gpu_loop_stop_requested.store(true, std::memory_order_release);
   m_gpu_mainloop.Stop(Common::BlockingLoop::StopMode::NonBlock);
 }
 #endif
@@ -294,6 +295,12 @@ void FifoManager::RunGpuLoop()
 {
   m_gpu_mainloop.Run(
       [this] {
+#ifdef __LIBRETRO__
+        // The frame's end-of-field stop may have arrived before this loop started (lost by
+        // BlockingLoop::Stop()). Re-issue it from inside the loop so retro_run returns.
+        if (m_gpu_loop_stop_requested.load(std::memory_order_acquire))
+          m_gpu_mainloop.Stop(Common::BlockingLoop::StopMode::NonBlock);
+#endif
         // Run events from the CPU thread.
         AsyncRequests::GetInstance()->PullEvents();
 
@@ -393,6 +400,11 @@ void FifoManager::RunGpuLoop()
         }
       },
       100);
+#ifdef __LIBRETRO__
+  // The CPU thread is stepping now (it requested the stop at the field boundary), so no new
+  // request can race with this reset before the next Core::DoFrameStep().
+  m_gpu_loop_stop_requested.store(false, std::memory_order_release);
+#endif
 }
 
 void FifoManager::FlushGpu()

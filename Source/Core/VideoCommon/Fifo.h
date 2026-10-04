@@ -90,6 +90,11 @@ private:
   static constexpr u32 FIFO_SIZE = 2 * 1024 * 1024;
 
   Common::BlockingLoop m_gpu_mainloop;
+#ifdef __LIBRETRO__
+  // Set by StopGpuLoop() (CPU thread, end of field) and consumed by the GPU loop payload.
+  // BlockingLoop::Stop() is dropped if the loop has not started yet, so keep the request here.
+  std::atomic<bool> m_gpu_loop_stop_requested{false};
+#endif
 
   Common::Flag m_emu_running_state;
 
