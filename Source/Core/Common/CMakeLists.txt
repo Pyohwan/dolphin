@@ -313,6 +313,13 @@ if(ENABLE_EGL AND EGL_FOUND)
       GL/GLInterface/EGLX11.h
     )
   endif()
+  if(WAYLAND_EGL_FOUND AND NOT LIBRETRO)
+    target_sources(common PRIVATE
+      GL/GLInterface/EGLWayland.cpp
+      GL/GLInterface/EGLWayland.h
+    )
+    target_link_libraries(common PRIVATE PkgConfig::WAYLAND_EGL)
+  endif()
   target_include_directories(common PRIVATE ${EGL_INCLUDE_DIRS})
   target_link_libraries(common PUBLIC ${EGL_LIBRARIES})
 endif()

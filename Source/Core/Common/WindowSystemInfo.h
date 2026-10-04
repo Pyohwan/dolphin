@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <atomic>
+
 enum class WindowSystemType
 {
   Headless,
@@ -47,3 +49,26 @@ struct WindowSystemInfo
   // Scale of the render surface. For hidpi systems, this will be >1.
   float render_surface_scale = 1.0f;
 };
+
+namespace Common
+{
+// Last render window size reported by the host frontend, in pixels (0 if unknown). Window
+// surfaces that have no size of their own (Wayland) use it; it is also needed before the
+// presenter exists (TOPST D3-G).
+inline std::atomic<int> g_host_surface_width{0};
+inline std::atomic<int> g_host_surface_height{0};
+
+inline void SetHostSurfaceSize(int width, int height)
+{
+  g_host_surface_width.store(width, std::memory_order_relaxed);
+  g_host_surface_height.store(height, std::memory_order_relaxed);
+}
+inline int GetHostSurfaceWidth()
+{
+  return g_host_surface_width.load(std::memory_order_relaxed);
+}
+inline int GetHostSurfaceHeight()
+{
+  return g_host_surface_height.load(std::memory_order_relaxed);
+}
+}  // namespace Common
