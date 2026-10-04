@@ -3,6 +3,8 @@
 
 #include "VideoCommon/Present.h"
 
+#include "Common/FrametimeLog.h"
+
 #include "Common/ChunkFile.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
@@ -938,6 +940,7 @@ void Presenter::Present(PresentInfo* present_info)
     }
 
     g_gfx->PresentBackbuffer();
+    FrametimeLogPresent();
   }
 
   if (m_xfb_entry)
