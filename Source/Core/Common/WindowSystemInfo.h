@@ -60,6 +60,10 @@ inline std::atomic<int> g_host_surface_height{0};
 
 inline void SetHostSurfaceSize(int width, int height)
 {
+  // Qt reports 0x0 while the render widget switches to fullscreen on Wayland (seen right after
+  // the real 2560x1440); keep the last real size instead of falling back to a default.
+  if (width <= 0 || height <= 0)
+    return;
   g_host_surface_width.store(width, std::memory_order_relaxed);
   g_host_surface_height.store(height, std::memory_order_relaxed);
 }
